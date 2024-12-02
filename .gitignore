@@ -1,0 +1,5 @@
+# emacs related files
+*~
+
+# don't include inputs
+*.txt
