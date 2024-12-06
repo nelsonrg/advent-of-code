@@ -1,4 +1,5 @@
 from typing import NamedTuple
+from copy import deepcopy
 
 
 SYMBOLS = ("^", ">", "v", "<")
@@ -48,7 +49,7 @@ def step(guard_map: list[list[str]]) -> None:
         guard_map[new_location.row][new_location.column] = new_symbol
 
 
-def get_next_location(symbol, location, guard_map):
+def get_next_location(symbol: str, location: Location, guard_map: list[list[str]]) -> tuple[Location, str]:
     next_location, next_symbol = move_forward(symbol, location)
     if is_blocked(next_location, guard_map):
         return rotate(symbol, location)
@@ -68,7 +69,7 @@ def move_forward(symbol: str, current_location: Location) -> tuple[Location, str
     )
 
 
-def rotate(symbol, current_location):
+def rotate(symbol: str, current_location: Location) -> tuple[Location, str]:
     next_symbol = {
         "^": ">",
         "v": "<",
@@ -78,12 +79,39 @@ def rotate(symbol, current_location):
     return move_forward(next_symbol[symbol], current_location)
 
 
-def is_blocked(location, guard_map):
+def is_blocked(location: Location, guard_map: list[list[str]]) -> bool:
     if not is_in_map(location, guard_map):
         return False
     return guard_map[location.row][location.column] == "#"
 
 
+def part_2(guard_map: list[list[str]]) -> int:
+    total: int = 0
+    n_rows: int = len(guard_map)
+    n_cols: int = len(guard_map[0])
+    for row in range(n_rows):
+        for column in range(n_cols):
+            if guard_map[row][column] == ".":
+                m = deepcopy(guard_map)
+                m[row][column] = "#"
+                total += is_loop(m)
+    return total
+
+
+def is_loop(guard_map: list[list[str]]) -> bool:
+    visited = set()
+    location, symbol = get_symbol_location(guard_map)
+    while is_in_map(location, guard_map):
+        if (location, symbol) in visited:
+            return True
+        visited.add((location, symbol))
+        step(guard_map)
+        location, symbol = get_symbol_location(guard_map)
+    return False
+
+
 if __name__ == "__main__":
     guard_map = read_input("day_6_input.txt")
     print(part_1(guard_map))
+    guard_map = read_input("day_6_input.txt")
+    print(part_2(guard_map))
