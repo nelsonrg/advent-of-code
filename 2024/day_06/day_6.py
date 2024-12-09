@@ -2,10 +2,12 @@ from typing import NamedTuple
 from copy import deepcopy
 
 
-SYMBOLS = ("^", ">", "v", "<")
-
-
 class Location(NamedTuple):
+    row: int
+    column: int
+
+
+class Direction(NamedTuple):
     row: int
     column: int
 
@@ -16,13 +18,17 @@ def read_input(file_name: str) -> list[list[str]]:
 
 
 def part_1(guard_map):
+    return len(get_visited_locations(guard_map))
+
+
+def get_visited_locations(guard_map) -> set[Location]:
     visited = set()
-    location, _ = get_symbol_location(guard_map)
+    location = get_symbol_location(guard_map, "^")
+    direction = Direction(row=-1, column=0)
     while is_in_map(location, guard_map):
         visited.add(location)
-        step(guard_map)
-        location, _ = get_symbol_location(guard_map)
-    return len(visited)
+        location, direction = get_next_location(location, direction, guard_map)
+    return visited
 
 
 def is_in_map(location: Location, guard_map: list[list[str]]) -> bool:
@@ -33,50 +39,32 @@ def is_in_map(location: Location, guard_map: list[list[str]]) -> bool:
     return (0 <= location.row < max_row) and (0 <= location.column < max_col)
 
 
-def get_symbol_location(guard_map: list[list[str]]) -> tuple[Location, str]:
-    for idx, row in enumerate(guard_map):
-        for symbol in SYMBOLS:
-            if symbol in row:
-                return Location(row=idx, column=row.index(symbol)), symbol
-    return None, None
+def get_symbol_location(guard_map: list[list[str]], symbol: str) -> Location:
+    for i, row in enumerate(guard_map):
+        if symbol in row:
+            return Location(row=i, column=row.index(symbol))
+    return None
 
 
-def step(guard_map: list[list[str]]) -> None:
-    location, symbol = get_symbol_location(guard_map)
-    new_location, new_symbol = get_next_location(symbol, location, guard_map)
-    guard_map[location.row][location.column] = "."
-    if is_in_map(new_location, guard_map):
-        guard_map[new_location.row][new_location.column] = new_symbol
-
-
-def get_next_location(symbol: str, location: Location, guard_map: list[list[str]]) -> tuple[Location, str]:
-    next_location, next_symbol = move_forward(symbol, location)
+def get_next_location(location: Location, direction: Direction, guard_map: list[list[str]]) -> tuple[Location, Direction]:
+    next_location, next_direction = move_forward(location, direction)
     if is_blocked(next_location, guard_map):
-        return rotate(symbol, location)
-    return next_location, next_symbol
+        return rotate(location, direction)
+    return next_location, next_direction
 
 
-def move_forward(symbol: str, current_location: Location) -> tuple[Location, str]:
-    next_location = {
-        "^": (-1, 0),
-        "v": (1, 0),
-        ">": (0, 1),
-        "<": (0, -1)
-    }
-    return (
-        Location(*tuple(sum(x) for x in zip(next_location[symbol], current_location))),
-        symbol
+def move_forward(location: Location, direction: Direction) -> tuple[Location, Direction]:
+    return Location(location.row + direction.row, location.column + direction.column), direction
+
+
+def rotate(location: Location, direction: Direction) -> tuple[Location, Direction]:
+    R = [[0, 1],
+         [-1, 0]]
+    new_direction = Direction(
+        row=direction.row * R[0][0] + direction.column * R[0][1],
+        column=direction.row * R[1][0] + direction.column * R[1][1]
     )
-
-
-def rotate(symbol: str, current_location: Location) -> tuple[Location, str]:
-    next_symbol = {
-        "^": ">",
-        "v": "<",
-        ">": "v",
-        "<": "^"
-    }
-    return move_forward(next_symbol[symbol], current_location)
+    return location, new_direction
 
 
 def is_blocked(location: Location, guard_map: list[list[str]]) -> bool:
@@ -87,31 +75,30 @@ def is_blocked(location: Location, guard_map: list[list[str]]) -> bool:
 
 def part_2(guard_map: list[list[str]]) -> int:
     total: int = 0
-    n_rows: int = len(guard_map)
-    n_cols: int = len(guard_map[0])
-    for row in range(n_rows):
-        for column in range(n_cols):
-            if guard_map[row][column] == ".":
-                m = deepcopy(guard_map)
-                m[row][column] = "#"
-                total += is_loop(m)
+    possible_locations = get_visited_locations(guard_map)
+
+    for location in possible_locations:
+        if guard_map[location.row][location.column] == ".":
+            m = deepcopy(guard_map)
+            m[location.row][location.column] = "#"
+            total += is_loop(m)
+            
     return total
 
 
 def is_loop(guard_map: list[list[str]]) -> bool:
     visited = set()
-    location, symbol = get_symbol_location(guard_map)
+    location = get_symbol_location(guard_map, "^")
+    direction = Direction(row=-1, column=0)
     while is_in_map(location, guard_map):
-        if (location, symbol) in visited:
+        if (location, direction) in visited:
             return True
-        visited.add((location, symbol))
-        step(guard_map)
-        location, symbol = get_symbol_location(guard_map)
+        visited.add((location, direction))
+        location, direction = get_next_location(location, direction, guard_map)
     return False
 
 
 if __name__ == "__main__":
     guard_map = read_input("day_6_input.txt")
     print(part_1(guard_map))
-    guard_map = read_input("day_6_input.txt")
     print(part_2(guard_map))
